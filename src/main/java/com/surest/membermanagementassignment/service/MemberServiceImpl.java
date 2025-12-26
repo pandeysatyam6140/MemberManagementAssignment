@@ -3,6 +3,7 @@ package com.surest.membermanagementassignment.service;
 import com.surest.membermanagementassignment.dto.CreateMemberRequest;
 import com.surest.membermanagementassignment.dto.MemberResponse;
 import com.surest.membermanagementassignment.entity.Member;
+import com.surest.membermanagementassignment.mapper.MemberMapper;
 import com.surest.membermanagementassignment.repository.MemberRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
-
 
 @Slf4j
 @Service
@@ -108,7 +108,7 @@ public class MemberServiceImpl implements MemberService {
         Member member = memberRepository.findById(id)
                 .orElseThrow(() -> new MemberNotFoundException("Member not found with id: " + id));
 
-        // Check if email is used by another member
+
         if (memberRepository.existsByEmailAndIdNot(request.getEmail(), id)) {
             throw new MemberAlreadyExistsException("Email already used by another member");
         }

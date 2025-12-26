@@ -1,142 +1,90 @@
 package com.surest.membermanagementassignment.service;
 
-import com.surest.membermanagementassignment.dto.CreateMemberRequest;
-import com.surest.membermanagementassignment.dto.MemberResponse;
+
+import com.surest.membermanagementassignment.dto.MemberDTO;
 import com.surest.membermanagementassignment.entity.Member;
-import com.surest.membermanagementassignment.exception.MemberAlreadyExistsException;
-import com.surest.membermanagementassignment.exception.MemberNotFoundException;
-import com.surest.membermanagementassignment.mapper.MemberMapper;
+import com.surest.membermanagementassignment.util.MemberMapper;
 import com.surest.membermanagementassignment.repository.MemberRepository;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.persistence.EntityExistsException;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-@Slf4j
 @Service
+@RequiredArgsConstructor
 public class MemberServiceImpl implements MemberService {
 
     private final MemberRepository memberRepository;
     private final MemberMapper memberMapper;
 
-    public MemberServiceImpl(MemberRepository memberRepository, MemberMapper memberMapper) {
-        this.memberRepository = memberRepository;
-        this.memberMapper = memberMapper;
-    }
-
     @Override
-    @Cacheable(value = "memberCache", key = "#id")
-    @Transactional(readOnly = true)
-    public MemberResponse getMemberById(UUID id) {
+    public Page<MemberDTO> getAllMembers(int page, int size, String sort, String firstName, String lastName) {
 
-        log.info("Fetching member with ID: {}", id);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Order.by(sort.split(",")[0])
+                .with(Sort.Direction.fromString(sort.split(",")[1]))));
 
-        Member member = memberRepository.findById(id)
-                .orElseThrow(() -> new MemberNotFoundException("Member not found with id: " + id));
+        Specification<Member> spec = Specification.unrestricted();
 
-        return memberMapper.mapToMemberResponse(member);
-    }
-
-
-    @Override
-    @Transactional(readOnly = true)
-    public Page<MemberResponse> getAllMembers(int page, int size, String sortBy, String sortDirection, String firstName, String lastName) {
-
-        log.info("Fetching members | page={}, size={}, sortBy={}, direction={}", page, size, sortBy, sortDirection);
-
-        Sort sort = sortDirection.equalsIgnoreCase("desc") ?
-                Sort.by(sortBy).descending() :
-                Sort.by(sortBy).ascending();
-
-        Pageable pageable = PageRequest.of(page, size, sort);
-
-        Page<Member> membersPage;
-
-        if (firstName != null && lastName != null) {
-            membersPage = memberRepository
-                    .findByFirstNameContainingAndLastNameContaining(firstName, lastName, pageable);
-        } else if (firstName != null) {
-            membersPage = memberRepository.findByFirstNameContaining(firstName, pageable);
-        } else if (lastName != null) {
-            membersPage = memberRepository.findByLastNameContaining(lastName, pageable);
-        } else {
-            membersPage = memberRepository.findAll(pageable);
+        if(firstName!=null && !firstName.isEmpty()) {
+            spec = spec.and((root, query, cb) ->
+                    cb.like(cb.lower(root.get("firstName")), "%" + firstName.toLowerCase() + "%"));
         }
-
-        return membersPage.map(memberMapper::mapToMemberResponse);
-
-    }
-
-
-    @Override
-    @Transactional
-    public MemberResponse createMember(CreateMemberRequest request) {
-
-        log.info("Creating member with email: {}", request.getEmail());
-
-        if (memberRepository.existsByEmail(request.getEmail())) {
-            throw new MemberAlreadyExistsException("Email already exists: " + request.getEmail());
+        if(lastName!=null && !lastName.isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("lastName")), "%" + lastName.toLowerCase() + "%"));
         }
-
-        Member member = new Member();
-
-        member.setFirstName(request.getFirstName());
-        member.setLastName(request.getLastName());
-        member.setDateOfBirth(request.getDateOfBirth());
-        member.setEmail(request.getEmail());
-
-        Member saved = memberRepository.saveAndFlush(member);
-
-        log.info("Member created with ID: {}", saved.getId());
-        return memberMapper.mapToMemberResponse(saved);
-
+        return memberRepository.findAll(spec, pageable).map(memberMapper::toMemberDTO);
     }
 
     @Override
-    @CacheEvict(value = "memberCache", key = "#id")
-    @Transactional
-    public MemberResponse updateMember(UUID id, CreateMemberRequest request) {
+    @Cacheable(value = "members", key = "#id.toString()")
+    public MemberDTO getMemberById(UUID id) {
+        System.out.println("Fetching data for Id : " + id);
+        return memberRepository.findById(id)
+                .map(memberMapper::toMemberDTO)
+                .orElseThrow(() -> new EntityNotFoundException("Member not found"));
+    }
 
-        log.info("Updating member with ID: {}", id);
-
-        Member member = memberRepository.findById(id)
-                .orElseThrow(() -> new MemberNotFoundException("Member not found with id: " + id));
-
-
-        if (memberRepository.existsByEmailAndIdNot(request.getEmail(), id)) {
-            throw new MemberAlreadyExistsException("Email already used by another member");
+    @Override
+    public MemberDTO createMember(MemberDTO dto) {
+        if(memberRepository.existsByEmail((dto.getEmail()))) {
+            throw new EntityExistsException("Member already exists");
         }
-
-        member.setFirstName(request.getFirstName());
-        member.setLastName(request.getLastName());
-        member.setDateOfBirth(request.getDateOfBirth());
-        member.setEmail(request.getEmail());
-
-        Member updated = memberRepository.save(member);
-
-        log.info("Member updated successfully with ID: {}", id);
-        return memberMapper.mapToMemberResponse(updated);
+        Member member = memberMapper.toMemberEntity(dto);
+        return memberMapper.toMemberDTO(memberRepository.save(member));
     }
 
-    @Override
-    @CacheEvict(value = "memberCache", key = "#id")
     @Transactional
+    @Override
+    @CacheEvict(value = "members", key = "#id.toString()")
+    public MemberDTO updateMember(UUID id, MemberDTO dto) {
+        Member existing = memberRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Member not found"));
+
+        existing.setFirstName(dto.getFirstName());
+        existing.setLastName(dto.getLastName());
+        existing.setEmail(dto.getEmail());
+        existing.setDateOfBirth(dto.getDateOfBirth());
+
+        return memberMapper.toMemberDTO(memberRepository.save(existing));
+    }
+
+    @Transactional
+    @Override
+    @CacheEvict(value = "members", key = "#id.toString()")
     public void deleteMember(UUID id) {
-
-        Member member = memberRepository.findById(id)
-                .orElseThrow(() -> new MemberNotFoundException("Member not found with id: " + id));
-
-        memberRepository.delete(member);
-
-        log.info("Member deleted with ID: {}", id);
+        if(!memberRepository.existsById(id)) {
+            throw new RuntimeException("Member not found");
+        }
+        memberRepository.deleteById(id);
     }
-
 }

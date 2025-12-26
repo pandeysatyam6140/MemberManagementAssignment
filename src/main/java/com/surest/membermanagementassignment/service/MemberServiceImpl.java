@@ -3,6 +3,8 @@ package com.surest.membermanagementassignment.service;
 import com.surest.membermanagementassignment.dto.CreateMemberRequest;
 import com.surest.membermanagementassignment.dto.MemberResponse;
 import com.surest.membermanagementassignment.entity.Member;
+import com.surest.membermanagementassignment.exception.MemberAlreadyExistsException;
+import com.surest.membermanagementassignment.exception.MemberNotFoundException;
 import com.surest.membermanagementassignment.mapper.MemberMapper;
 import com.surest.membermanagementassignment.repository.MemberRepository;
 import lombok.extern.slf4j.Slf4j;

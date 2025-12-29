@@ -37,3 +37,6 @@ Built as part of a backend assignment focusing on clean architecture, security, 
 ### Gradle test
 ![Gradle Test](screenshot/Gradle_Test.png)
 
+### Sql Queries
+![Gradle Test](screenshot/Sql_Query.png)
+

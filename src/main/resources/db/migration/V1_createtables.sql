@@ -1,11 +1,9 @@
--- Create role table
 CREATE TABLE role
 (
     id   UUID PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE
 );
 
--- Create user table
 CREATE TABLE user
 (
     id            UUID PRIMARY KEY,
@@ -15,7 +13,6 @@ CREATE TABLE user
     CONSTRAINT fk_user_role FOREIGN KEY (role_id) REFERENCES role (id)
 );
 
--- Create member table
 CREATE TABLE member
 (
     id            UUID PRIMARY KEY,

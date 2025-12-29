@@ -9,7 +9,7 @@ import org.hibernate.annotations.UuidGenerator;
 import java.util.UUID;
 
 @Entity
-@Table(name = "app_user")
+@Table(name = "user")
 @Getter
 @Setter
 @NoArgsConstructor

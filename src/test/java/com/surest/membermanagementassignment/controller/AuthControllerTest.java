@@ -1,90 +1,80 @@
 package com.surest.membermanagementassignment.controller;
 
-import com.surest.membermanagementassignment.dto.AuthRequest;
-import com.surest.membermanagementassignment.dto.AuthResponse;
 import com.surest.membermanagementassignment.security.JwtUtil;
 import com.surest.membermanagementassignment.service.CustomUserDetailsServiceImpl;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Collections;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
-public class AuthControllerTest {
+@WebMvcTest(AuthController.class)
+@AutoConfigureMockMvc(addFilters = false)
+class AuthControllerTest {
 
-    @Mock
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
     private AuthenticationManager authenticationManager;
 
-    @Mock
+    @MockBean
     private CustomUserDetailsServiceImpl userDetailsService;
 
-    @Mock
+    @MockBean
     private JwtUtil jwtUtil;
 
-    @InjectMocks
-    private AuthController authController;
+    @Test
+    void testLoginSuccess() throws Exception {
+        UserDetails userDetails =
+                new User("admin_user", "AdminPass123", Collections.emptyList());
 
-    public AuthControllerTest() {
-        MockitoAnnotations.openMocks(this);
-    }
+        when(authenticationManager.authenticate(any()))
+                .thenReturn(new UsernamePasswordAuthenticationToken(userDetails, null));
+        when(userDetailsService.loadUserByUsername("admin_user"))
+                .thenReturn(userDetails);
+        when(jwtUtil.generateToken(userDetails))
+                .thenReturn("mock-jwt-token");
 
-    @BeforeEach
-    void setUp() {
-        authenticationManager = mock(AuthenticationManager.class);
-        userDetailsService = mock(CustomUserDetailsServiceImpl.class);
-        jwtUtil = mock(JwtUtil.class);
-
-        authController = new AuthController(authenticationManager, userDetailsService, jwtUtil);
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    {
+                      "username": "admin_user",
+                      "password": "AdminPass123"
+                    }
+                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("mock-jwt-token"));
     }
 
     @Test
-    void testLoginSuccess() {
+    void testLoginFailureInvalidCredentials() throws Exception {
+        when(authenticationManager.authenticate(any()))
+                .thenThrow(new BadCredentialsException("Invalid credentials"));
 
-        AuthRequest req = new AuthRequest("admin_user", "AdminPass123");
-        UserDetails userDetails = new User("admin_user", "AdminPass123", Collections.emptyList());
-
-        when(authenticationManager.authenticate(any())).thenReturn(new UsernamePasswordAuthenticationToken(userDetails, null));
-        when(userDetailsService.loadUserByUsername("admin_user")).thenReturn(userDetails);
-        when(jwtUtil.generateToken(userDetails)).thenReturn("mock-jwt-token");
-
-
-        ResponseEntity<?> response = authController.login(req);
-
-
-        assertNotNull(response.getBody());
-        AuthResponse authResponse = (AuthResponse) response.getBody();
-        assertEquals("mock-jwt-token", authResponse.getToken());
-        assertEquals(200, response.getStatusCode().value());
-
-        verify(authenticationManager, times(1)).authenticate(any());
-        verify(jwtUtil, times(1)).generateToken(any());
-    }
-
-    @Test
-    void testLoginFailureInvalidCredentials() {
-        AuthRequest req = new AuthRequest("wrong", "bad");
-        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Invalid credentials"));
-
-        ResponseEntity<?> response = authController.login(req);
-
-        assertEquals(401, response.getStatusCode().value());
-        assertEquals("Invalid credentials", response.getBody());
-
-        verify(authenticationManager, times(1)).authenticate(any());
-        verify(jwtUtil, never()).generateToken(any());
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    {
+                      "username": "wrong",
+                      "password": "bad"
+                    }
+                """))
+                .andExpect(status().isUnauthorized());
     }
 }

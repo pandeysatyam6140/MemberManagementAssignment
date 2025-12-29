@@ -1,5 +1,6 @@
 package com.surest.membermanagementassignment.security;
 
+import io.jsonwebtoken.ExpiredJwtException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.User;
@@ -77,10 +78,10 @@ public class JwtUtilTest {
         UserDetails userDetails = new User("testUser", "password", Collections.emptyList());
         String token = shortExpiryJwtUtil.generateToken(userDetails);
 
-        Thread.sleep(1500); // Wait for token to expire
-
-        boolean isValid = shortExpiryJwtUtil.validateToken(token, userDetails);
-
-        assertFalse(isValid);
+        Thread.sleep(1500);
+        assertThrows(
+                ExpiredJwtException.class,
+                () -> shortExpiryJwtUtil.validateToken(token, userDetails)
+        );
     }
 }

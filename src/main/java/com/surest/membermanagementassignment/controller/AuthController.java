@@ -3,43 +3,41 @@ package com.surest.membermanagementassignment.controller;
 import com.surest.membermanagementassignment.dto.AuthRequest;
 import com.surest.membermanagementassignment.dto.AuthResponse;
 import com.surest.membermanagementassignment.security.JwtUtil;
-import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.surest.membermanagementassignment.service.CustomUserDetailsServiceImpl;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.stream.Collectors;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
-    private AuthenticationManager authManager;
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    public AuthController(AuthenticationManager authManager, JwtUtil jwtUtil) {
-        this.authManager = authManager;
-        this.jwtUtil = jwtUtil;
-    }
+    private final AuthenticationManager authenticationManager;
+    private final CustomUserDetailsServiceImpl userDetailsService;
+    private final JwtUtil jwtUtil;
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest req) {
+    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+            );
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
+        }
 
-        Authentication auth = authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
+        final UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
+        final String jwt = jwtUtil.generateToken(userDetails);
 
-        List<String> roles = auth.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toList());
-
-        String token = jwtUtil.generateToken(auth.getName(), roles);
-
-        return ResponseEntity.ok(new AuthResponse(token));
+        return ResponseEntity.ok(new AuthResponse(jwt));
     }
 }

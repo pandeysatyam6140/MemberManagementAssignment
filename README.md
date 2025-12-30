@@ -32,7 +32,7 @@ Built as part of a backend assignment focusing on clean architecture, security, 
 ![App Running](screenshot/App_Running_Screenshot.png)
 
 ### Code Coverage
-![Code Coverage](screenshot/Code_Coverage_Report.png)
+![Code Coverage](screenshot/Code_Coverage.png)
 
 ### Gradle test
 ![Gradle Test](screenshot/Gradle_Test.png)

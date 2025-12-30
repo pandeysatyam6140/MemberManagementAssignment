@@ -72,6 +72,7 @@ dependencies {
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'org.testcontainers:postgresql'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
 
 }
 

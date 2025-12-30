@@ -19,7 +19,7 @@ Built as part of a backend assignment focusing on clean architecture, security, 
 - Spring Security
 - Gradle
 - JUnit 5, MockMvc
-- JaCoCo
+- JaCoCo Code Coverage
 
 ## 🔐 Security
 -Endpoint-level security using Spring Security

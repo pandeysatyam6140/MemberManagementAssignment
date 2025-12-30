@@ -33,7 +33,7 @@ public class MemberServiceImpl implements MemberService {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Order.by(sort.split(",")[0])
                 .with(Sort.Direction.fromString(sort.split(",")[1]))));
 
-        Specification<Member> spec = Specification.unrestricted();
+        Specification<Member> spec = Specification.where(null);
 
         if(firstName!=null && !firstName.isEmpty()) {
             spec = spec.and((root, query, cb) ->

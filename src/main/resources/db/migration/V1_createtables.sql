@@ -6,7 +6,7 @@ CREATE TABLE role
 );
 
 -- Create user table
-CREATE TABLE "user"
+CREATE TABLE user
 (
     id            UUID PRIMARY KEY,
     username      VARCHAR(50)  NOT NULL UNIQUE,
